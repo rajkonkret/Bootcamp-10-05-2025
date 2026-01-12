@@ -58,11 +58,52 @@ class Calculator(QWidget):
 
     def calculate(self):
         try:
-            result = eval(self.result_fields.text())  # wykona działanie
+            # result = eval(self.result_fields.text())  # wykona działanie
+            # dodac safe calc
+            result = safe_calc(self.result_fields.text())
             self.result_fields.setText(str(result))
         except:
             self.result_fields.setText("Error!!!")
 
+import ast
+import operator
+
+# dozwolone operatory
+OPERATORS = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+    ast.Pow: operator.pow,
+    ast.USub: operator.neg,
+}
+
+def safe_calc(expr: str):
+    node = ast.parse(expr, mode="eval")
+
+    def _eval(n):
+        if isinstance(n, ast.Expression):
+            return _eval(n.body)
+
+        if isinstance(n, ast.Constant):  # Python 3.8+
+            return n.value
+
+        if isinstance(n, ast.BinOp):
+            if type(n.op) not in OPERATORS:
+                raise ValueError("Niedozwolony operator")
+            return OPERATORS[type(n.op)](
+                _eval(n.left),
+                _eval(n.right)
+            )
+
+        if isinstance(n, ast.UnaryOp):
+            if type(n.op) not in OPERATORS:
+                raise ValueError("Niedozwolony operator")
+            return OPERATORS[type(n.op)](_eval(n.operand))
+
+        raise ValueError("Niedozwolone wyrażenie")
+
+    return _eval(node)
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
